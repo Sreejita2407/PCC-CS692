@@ -1,5 +1,6 @@
 #define dataSize 256
-typedef struct{
+typedef struct
+{
 	long mtype;
 	char mdata[dataSize];
-	}MQ;
+} MQ;

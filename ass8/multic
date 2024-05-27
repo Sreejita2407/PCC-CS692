@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+
+typedef struct{
+	int sockf;
+	struct sockaddr_in so;
+}sock;
+
+int flag=0;
+
+void *get(void* arg){
+	sock t=*(sock*) arg;
+	int sockfd=t.sockf;
+	struct sockaddr_in s=t.so;
+	char buff[512];
+	socklen_t len=sizeof(s);
+	while(1){
+		bzero(buff,sizeof(buff));
+		recvfrom(sockfd,buff,sizeof(buff),0,(struct sockaddr*)&s,&len);
+		if(!flag)
+			printf("\33[2k\rRecieved: %s\n",buff);
+		flag=0;
+		printf("\33[2k\rEnter: ");
+		fflush(stdout);
+	}
+	pthread_exit(NULL);
+}
+
+void *Send(void* arg){
+	sock t=*(sock*) arg;
+	int sockfd=t.sockf;
+	struct sockaddr_in s=t.so;
+	char buff[512];
+	printf("Enter: ");
+	while(1){
+		bzero(buff,sizeof(buff));
+		fflush(stdout);
+		scanf(" %[^\n]s",buff);
+		flag=1;
+		sendto(sockfd,buff,sizeof(buff),0,(struct sockaddr*)&s,sizeof(s));
+	}
+	pthread_exit(NULL);
+}
+
+
+void main(int argc,char ** argv){
+	if(argc<3){
+		printf("Provide multicast IP and port number! ");
+		exit(1);
+	}
+	int res;
+	struct sockaddr_in multi;
+	multi.sin_family=AF_INET;
+	multi.sin_port=htons(atoi(argv[2]));
+	multi.sin_addr.s_addr=inet_addr(argv[1]);
+	
+	int sockfd=socket(AF_INET,SOCK_DGRAM,0);
+	int reuse = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+	    perror("setsockopt");
+	    exit(1);
+	}
+	res=bind(sockfd,(struct sockaddr*)&multi,sizeof(multi));
+	if(res!=0)
+		perror("error in bind");
+	struct ip_mreq mreq;
+	mreq.imr_multiaddr.s_addr=inet_addr(argv[1]);
+	mreq.imr_interface.s_addr=INADDR_ANY;
+	
+	res=setsockopt(sockfd,IPPROTO_IP,IP_ADD_MEMBERSHIP,&mreq,sizeof(mreq));
+	
+	if(res!=0)
+		perror("error ");
+	char buff[512];
+	sock t={
+		.sockf=sockfd,
+		.so=multi
+	};
+	pthread_t t1,t2;
+	pthread_create(&t2,NULL,get,&t);
+	pthread_create(&t1,NULL,Send,&t);
+	pthread_join(t1,NULL);
+	pthread_join(t2,NULL);
+	
+	close(sockfd);
+	
+}

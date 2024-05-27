@@ -1,0 +1,47 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<netinet/udp.h>
+
+
+#define SIZE 1024
+#define PORT 4440
+
+
+int main(){
+
+int sockfd=socket(AF_INET,SOCK_DGRAM,0);
+struct sockaddr_in ser_addr,cli_addr;
+ser_addr.sin_family=AF_INET;
+ser_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
+ser_addr.sin_port=htons(PORT);
+socklen_t addrlen=sizeof(ser_addr);
+bind(sockfd,(struct sockaddr*)&ser_addr,sizeof(ser_addr));
+char buffer[SIZE];
+int cli_len = sizeof(cli_addr);
+recvfrom(sockfd,buffer,SIZE,0,(struct sockaddr*)&cli_addr,&cli_len);
+printf("Data recived: %s\n",buffer);
+char dummybuf[SIZE];
+//strcpy(dummybuf,buffer);
+int d1=buffer[3] - '0';
+int d2=buffer[2]- '0';
+int d3=buffer[1]- '0';
+int d4=buffer[0]- '0';
+dummybuf[0] = (d2+d3+d4)%2+ '0';
+dummybuf[1] = buffer[2];
+dummybuf[2] = (d1+d3+d4)%2 + '0';
+dummybuf[3] = buffer[3];
+dummybuf[4] = (d1+d2+d4)%2 + '0';
+dummybuf[5] = buffer[1];
+dummybuf[6] = buffer[0];
+dummybuf[7] = '\0';
+//strcpy(buffer,dummybuf);
+sendto(sockfd,dummybuf,SIZE,0,(struct sockaddr*)&cli_addr,sizeof(cli_addr));
+return 0;
+}
+

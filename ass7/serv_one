@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#define sip "127.0.0.1"
+#define sport "8080"
+#define cip "127.0.0.1"
+#define cport "8081"
+
+pthread_t r, w;
+
+
+
+void *rec(void *args)
+{
+char data[100];
+int ss = socket(AF_INET, SOCK_DGRAM , 0);
+struct sockaddr_in saddr , caddr;
+saddr.sin_family=AF_INET;
+saddr.sin_port=htons(8080);
+caddr.sin_family=AF_INET;
+caddr.sin_port=htons(8081);
+inet_aton(cip,&(caddr.sin_addr));
+inet_aton(sip,&(saddr.sin_addr));
+bind(ss,(struct sockaddr*)&saddr,sizeof(saddr));
+while(1)
+{
+printf("\nWaiting for data from client\n");
+int len=sizeof(caddr);
+recvfrom(ss,(void*)data,sizeof(data),0,(struct sockaddr*)&caddr,&len);
+printf("\nData recieved from client:");
+printf("\n%s",data);
+if(strcasecmp(data,"exit")==0) break;
+
+
+}
+close(ss);
+}
+
+void *sen(void *args)
+{
+char data[100];
+int ss = socket(AF_INET, SOCK_DGRAM , 0);
+struct sockaddr_in saddr, caddr;
+saddr.sin_family=AF_INET;
+saddr.sin_port=htons(8080);
+inet_aton(sip,&(saddr.sin_addr));
+caddr.sin_family=AF_INET;
+caddr.sin_port=htons(8081);
+inet_aton(cip,&(caddr.sin_addr));
+bind(ss,(struct sockaddr*)&saddr,sizeof(saddr));
+while(1)
+{
+printf("\nEnter data('exit' to exit): ");
+fgets(data,sizeof(data),stdin);
+data[strlen(data) - 1]='\0';
+sendto(ss,(void*)data,strlen(data)+1,0,(struct sockaddr*)&caddr,sizeof(caddr));
+if(strcasecmp(data,"exit")==0) break;
+
+}
+close(ss);
+}
+
+void main()
+{
+
+pthread_create(&r,NULL,(void *)&rec,NULL);
+pthread_create(&w,NULL,(void *)&sen,NULL);
+
+pthread_join(r,NULL);
+pthread_join(w,NULL);
+}
